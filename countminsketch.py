@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-import hashlib
 import array
 
 
@@ -21,13 +20,13 @@ class CountMinSketch(object):
 
         from countminsketch import CountMinSketch
         sketch = CountMinSketch(1000, 10)  # m=1000, d=10
-        sketch.add("oh yeah")
-        sketch.add(tuple())
-        sketch.add(1, value=123)
-        print sketch["oh yeah"]       # prints 1
-        print sketch[tuple()]         # prints 1
-        print sketch[1]               # prints 123
-        print sketch["non-existent"]  # prints 0
+        sketch.update("oh yeah")
+        sketch.update(tuple())
+        sketch.update(1, value=123)
+        print(sketch["oh yeah"])      # prints 1
+        print(sketch[tuple()])        # prints 1
+        print(sketch[1])              # prints 123
+        print(sketch["non-existent"]) # prints 0
 
     Note that this class can be used to count *any* hashable type, so it's
     possible to "count apples" and then "ask for oranges". Validation is up to
@@ -46,15 +45,15 @@ class CountMinSketch(object):
         self.d = d
         self.n = 0
         self.tables = []
-        for _ in xrange(d):
-            table = array.array("l", (0 for _ in xrange(m)))
+        self.salt = []
+        for _ in range(d):
+            table = array.array("l", (0 for _ in range(m)))
             self.tables.append(table)
+            self.salt.append(hash(str(id(table))))
 
     def _hash(self, x):
-        md5 = hashlib.md5(str(hash(x)))
-        for i in xrange(self.d):
-            md5.update(str(i))
-            yield int(md5.hexdigest(), 16) % self.m
+        for s in self.salt:
+            yield hash((x, s)) % self.m
 
     def add(self, x, value=1):
         """
@@ -66,8 +65,11 @@ class CountMinSketch(object):
         Effectively counts `x` as occurring once.
         """
         self.n += value
+        xs = []
         for table, i in zip(self.tables, self._hash(x)):
             table[i] += value
+            xs.append(table[i])
+        return min(xs)  # TODO: Add test
 
     def query(self, x):
         """
